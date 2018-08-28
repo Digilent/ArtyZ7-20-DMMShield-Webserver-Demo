@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+
+<head>
+  <title> DMM Shield</title>
+  <link type="text/css" rel="stylesheet" href="css/main.css" />
+  <link rel="shortcut icon" href="images/favicon.ico">
+  <script>
+  </script>
+</head>
+
+<body>
+
+<img src="images/Digilent-Logo.gif" style="padding-left:20px"></img>
+
+<div id="container">
+<b class="rtop">
+  <b class="r1"></b> <b class="r2"></b> <b class="r3"></b> <b class="r4"></b>
+</b>
+
+<h1>DMM Shield Webserver demo</h1>
+
+<p> This is a demonstration of a simple embedded webserver created in order to access basic DMM Shield functionality. </p>
+<p> It is built starting from Xilinx LWIP webserver demo.</p>
+<p> The web page only uses basic HTML / Javascript coding.</p>
+
+
+
+<h2> DMM Shield Control</h2>
+<p>
+
+
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<div class="center">
+<p>&nbsp;</p>
+<p>
+<form action="">
+  <input type="radio" name="scaleType" id="vdc"> V - DC&nbsp;&nbsp; 
+  <select name="scale" id="vdcScaleSelect">>
+<option value="7">50 V</option>
+<option selected value="8">5 V</option>
+<option value="9">500 mV</option>
+<option value="10">50 mV</option>
+<option value="18">Diode</option>
+</select>
+  <br>
+  <input type="radio" name="scaleType" id="vac"> V - AC&nbsp;&nbsp;
+  <select name="scale" id="vacScaleSelect" >>
+<option value="11">30 V</option>
+<option selected value="12">5 V</option>
+<option value="13">500 mV</option>
+<option value="14">50 mV</option>
+</select>  
+  <br>
+  <input type="radio" name="scaleType" id ="adc"> A - DC&nbsp;&nbsp;
+<select name="scale" id="adcScaleSelect" >>
+<option selected value="15">5 A</option>
+<option value="19">500 mA</option>
+<option value="20">50 mA</option>
+<option value="21">5 mA</option>
+<option value="22">500 uA</option>
+</select>  
+  <br>
+  <input type="radio" name="scaleType" id="aac"> A - AC&nbsp;&nbsp;
+<select name="scale" id="aacScaleSelect" >>
+<option selected value="23">5 A</option>
+<option value="24">500 mA</option>
+<option value="25"> 50 mA</option>
+<option value="26">  5 mA</option>
+<option value="27">500 uA</option>
+</select>  
+  <br>
+  <input type="radio" name="scaleType" id="ohm"> &nbsp;&nbsp;OHM&nbsp;&nbsp;&nbsp;
+<select name="scale" id="ohmScaleSelect" >>
+<option value="0">50 MOhm</option>
+<option value="1">5 MOhm</option>
+<option selected value="2">500 kOhm</option>
+<option value="3">50 kOhm</option>
+<option value="4">5 kOhm</option>
+<option value="5">500 Ohm</option>
+<option value="6">50 Ohm</option>
+<option value="17">Continuity</option>
+</select>  
+  <br>
+  <p>&nbsp;</p>
+</form>
+</p>
+<div style="text-align:center;">
+  <input type = "text" disabled="disabled" readonly="readonly" id = "txtOutput" align="middle" / style="width: 118px;text-align: right">
+  </div>
+
+<p>&nbsp;</p>
+</div>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>
+<div id="statusTxt">
+<p>span></p>
+</div>
+<div id="debugTxt1">
+<p></p>
+</div>
+<h2> External Links </h2>
+<p>
+<i> (Note that these links point to locations not served by the embedded webserver)</i>
+<ul>
+<li> <a href="<li> <a href="http://savannah.nongnu.org/projects/lwip/">DMM Shield Home Page</a> </li>
+<li> <a href="https://www.xilinx.com/support/documentation/application_notes/xapp1026.pdf">Xilinx LightWeight IP Application Examples</a> </li>
+<li> <a href="http://www.digilentinc.com">Digilent</a></li>
+<li> <a href="http://www.xilinx.com">Xilinx</a></li>
+</ul>
+</p>
+
+
+<b class="rbottom">
+  <b class="r4"></b> <b class="r3"></b> <b class="r2"></b> <b class="r1"></b>
+</b>
+</div>
+  <script type="text/javascript" src="js/main.js"></script>
+
+</body>
+</html>
