@@ -110,8 +110,7 @@ int do_http_post(struct tcp_pcb *pcb, char *req, int rlen)
         p = (char *)buf + len;
         strcpy(p, szMsg);
         len += valLen;
-        xil_printf("http POST: Setscale\r\n");
-		xil_printf(szMsg);
+      xil_printf("http POST: Setscale %s\r\n", szMsg);
 
 	}
     else
@@ -143,7 +142,7 @@ int do_http_post(struct tcp_pcb *pcb, char *req, int rlen)
 			p = (char *)buf + len;
 			strcpy(p, szMsg);
 			len += valLen;
-			xil_printf("http POST: GetVal, current scale%2.2d\r\n", curScale);
+//			xil_printf("http POST: GetVal, current scale%2.2d\r\n", curScale);
 
     	}
     }
@@ -154,7 +153,7 @@ int do_http_post(struct tcp_pcb *pcb, char *req, int rlen)
 	}
 	else
 	{
-		xil_printf("Success tcp_write : %s\r\n", buf);
+//		xil_printf("Success tcp_write : %s\r\n", buf);
 
 	}
 

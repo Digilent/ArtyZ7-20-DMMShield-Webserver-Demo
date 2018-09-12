@@ -1,82 +1,115 @@
-/*
- * Copyright (c) 2007 Xilinx, Inc.  All rights reserved.
- *
- * Xilinx, Inc.
- * XILINX IS PROVIDING THIS DESIGN, CODE, OR INFORMATION "AS IS" AS A
- * COURTESY TO YOU.  BY PROVIDING THIS DESIGN, CODE, OR INFORMATION AS
- * ONE POSSIBLE   IMPLEMENTATION OF THIS FEATURE, APPLICATION OR
- * STANDARD, XILINX IS MAKING NO REPRESENTATION THAT THIS IMPLEMENTATION
- * IS FREE FROM ANY CLAIMS OF INFRINGEMENT, AND YOU ARE RESPONSIBLE
- * FOR OBTAINING ANY RIGHTS YOU MAY REQUIRE FOR YOUR IMPLEMENTATION.
- * XILINX EXPRESSLY DISCLAIMS ANY WARRANTY WHATSOEVER WITH RESPECT TO
- * THE ADEQUACY OF THE IMPLEMENTATION, INCLUDING BUT NOT LIMITED TO
- * ANY WARRANTIES OR REPRESENTATIONS THAT THIS IMPLEMENTATION IS FREE
- * FROM CLAIMS OF INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY
- * AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- */
-
-#include "xil_cache.h"
+/******************************************************************************
+*
+* Copyright (C) 2009 - 2017 Xilinx, Inc.  All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+* copies of the Software, and to permit persons to whom the Software is
+* furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in
+* all copies or substantial portions of the Software.
+*
+* Use of the Software is limited solely to applications:
+* (a) running on a Xilinx device, or
+* (b) that interact with a Xilinx device through a bus or interconnect.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+* XILINX  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+* OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+* SOFTWARE.
+*
+* Except as contained in this notice, the name of the Xilinx shall not be used
+* in advertising or otherwise to promote the sale, use or other dealings in
+* this Software without prior written authorization from Xilinx.
+*
+******************************************************************************/
 
 #include <stdio.h>
+
 #include "xparameters.h"
+
 #include "netif/xadapter.h"
+
 #include "platform.h"
 #include "platform_config.h"
-#include "lwipopts.h"
-#ifndef __PPC__
+#if defined (__arm__) || defined(__aarch64__)
 #include "xil_printf.h"
 #endif
 
-#include "lwip/udp.h"
+#include "lwip/tcp.h"
+#include "xil_cache.h"
+
+#if LWIP_IPV6==1
+#include "lwip/ip.h"
+#else
+#if LWIP_DHCP==1
+#include "lwip/dhcp.h"
+#endif
+#endif
+
 #include "dmm/dmm.h"
 #include "dmm/calib.h"
 #include "dmm/errors.h"
-
-#define XPAR_LEDS_8BITS_BASEADDR  XPAR_AXI_GPIO_0_BASEADDR
-
-void print_headers();
-int start_applications();
+/* defined by each RAW mode application */
+void print_app_header();
+int start_application();
 int transfer_data();
-void platform_enable_interrupts();
-void lwip_init(void);
 void tcp_fasttmr(void);
 void tcp_slowtmr(void);
 
+/* missing declaration in lwIP */
+void lwip_init();
+
+#if LWIP_IPV6==0
 #if LWIP_DHCP==1
 extern volatile int dhcp_timoutcntr;
 err_t dhcp_start(struct netif *netif);
 #endif
-extern volatile int TxPerfConnMonCntr;
+#endif
+
 extern volatile int TcpFastTmrFlag;
 extern volatile int TcpSlowTmrFlag;
+static struct netif server_netif;
+struct netif *netif;
 
-
-
-
-volatile u8 int_flag = 0;
-
-
-
-
-
-////////////////////////////////////////////////////////
-
-
-void print_ip(char *msg, struct ip_addr *ip)
+#if LWIP_IPV6==1
+void print_ip6(char *msg, ip_addr_t *ip)
 {
-    print(msg);
-    xil_printf("%d.%d.%d.%d\r\n", ip4_addr1(ip), ip4_addr2(ip),
+	print(msg);
+	xil_printf(" %x:%x:%x:%x:%x:%x:%x:%x\n\r",
+			IP6_ADDR_BLOCK1(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK2(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK3(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK4(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK5(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK6(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK7(&ip->u_addr.ip6),
+			IP6_ADDR_BLOCK8(&ip->u_addr.ip6));
+
+}
+#else
+void
+print_ip(char *msg, ip_addr_t *ip)
+{
+	print(msg);
+	xil_printf("%d.%d.%d.%d\n\r", ip4_addr1(ip), ip4_addr2(ip), 
 			ip4_addr3(ip), ip4_addr4(ip));
 }
 
-void print_ip_settings(struct ip_addr *ip, struct ip_addr *mask, struct ip_addr *gw)
+void
+print_ip_settings(ip_addr_t *ip, ip_addr_t *mask, ip_addr_t *gw)
 {
-    print_ip("Board IP:       ", ip);
-    print_ip("Netmask :       ", mask);
-    print_ip("Gateway :       ", gw);
-}
 
+	print_ip("Board IP: ", ip);
+	print_ip("Netmask : ", mask);
+	print_ip("Gateway : ", gw);
+}
 unsigned char initialize_DMM()
 {
 	uint8_t bErrCode;
@@ -85,58 +118,95 @@ unsigned char initialize_DMM()
 	return bErrCode;
 
 }
+#endif
+
+#if defined (__arm__) && !defined (ARMR5)
+#if XPAR_GIGE_PCS_PMA_SGMII_CORE_PRESENT == 1 || XPAR_GIGE_PCS_PMA_1000BASEX_CORE_PRESENT == 1
+int ProgramSi5324(void);
+int ProgramSfpPhy(void);
+#endif
+#endif
+
+#ifdef XPS_BOARD_ZCU102
+#ifdef XPAR_XIICPS_0_DEVICE_ID
+int IicPhyReset(void);
+#endif
+#endif
 
 int main()
 {
-	struct netif *netif, server_netif;
-	struct ip_addr ipaddr, netmask, gw;
+#if LWIP_IPV6==0
+	ip_addr_t ipaddr, netmask, gw;
 
-	struct ip_addr ntp_srv, pc_ip;
-
+#endif
 	/* the mac address of the board. this should be unique per board */
-	unsigned char mac_ethernet_address[] = { 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
+	unsigned char mac_ethernet_address[] =
+	{ 0x00, 0x0a, 0x35, 0x00, 0x01, 0x02 };
 
 	netif = &server_netif;
+#if defined (__arm__) && !defined (ARMR5)
+#if XPAR_GIGE_PCS_PMA_SGMII_CORE_PRESENT == 1 || XPAR_GIGE_PCS_PMA_1000BASEX_CORE_PRESENT == 1
+	ProgramSi5324();
+	ProgramSfpPhy();
+#endif
+#endif
 
-	IP4_ADDR(&ntp_srv, 80, 96 ,196, 58);
-	IP4_ADDR(&pc_ip, 10, 113 , 0, 27);
+/* Define this board specific macro in order perform PHY reset on ZCU102 */
+#ifdef XPS_BOARD_ZCU102
+	IicPhyReset();
+#endif
+
+	init_platform();
 
 
-	if (init_platform() < 0) {
-		xil_printf("ERROR initializing platform.\r\n");
-		return -1;
-	}
+//	print_app_header();
 
-	xil_printf("\r\n\r\n");
-	xil_printf("-----lwIP RAW Mode Demo Application ------\r\n");
+	lwip_init();
+
+#if LWIP_IPV6==0
+#if LWIP_DHCP==1
+    ipaddr.addr = 0;
+	gw.addr = 0;
+	netmask.addr = 0;
+#else
 	/* initliaze IP addresses to be used */
-#if (LWIP_DHCP==0)
 	IP4_ADDR(&ipaddr,  192, 168,   1, 10);
 	IP4_ADDR(&netmask, 255, 255, 255,  0);
 	IP4_ADDR(&gw,      192, 168,   1,  1);
-    print_ip_settings(&ipaddr, &netmask, &gw);
+#endif	
 #endif
-	lwip_init();
-
-#if (LWIP_DHCP==1)
-	ipaddr.addr = 0;
-	gw.addr = 0;
-	netmask.addr = 0;
-#endif
-
+#if (LWIP_IPV6 == 0)
 	/* Add network interface to the netif_list, and set it as default */
-	if (!xemac_add(netif, &ipaddr, &netmask, &gw, mac_ethernet_address, PLATFORM_EMAC_BASEADDR)) {
-		xil_printf("Error adding N/W interface\r\n");
+	if (!xemac_add(netif, &ipaddr, &netmask,
+						&gw, mac_ethernet_address,
+						PLATFORM_EMAC_BASEADDR)) {
+		xil_printf("Error adding N/W interface\n\r");
 		return -1;
 	}
-	netif_set_default(netif);
+#else
+	/* Add network interface to the netif_list, and set it as default */
+	if (!xemac_add(netif, NULL, NULL, NULL, mac_ethernet_address,
+						PLATFORM_EMAC_BASEADDR)) {
+		xil_printf("Error adding N/W interface\n\r");
+		return -1;
+	}
+	netif->ip6_autoconfig_enabled = 1;
 
-	/* specify that the network if is up */
-	netif_set_up(netif);
+	netif_create_ip6_linklocal_address(netif, 1);
+	netif_ip6_addr_set_state(netif, 0, IP6_ADDR_VALID);
+
+	print_ip6("\n\rBoard IPv6 address ", &netif->ip6_addr[0].u_addr.ip6);
+
+#endif
+	netif_set_default(netif);
 
 	/* now enable interrupts */
 	platform_enable_interrupts();
 
+	/* specify that the network if is up */
+	netif_set_up(netif);
+
+#if (LWIP_IPV6 == 0)
 #if (LWIP_DHCP==1)
 	/* Create a new DHCP client for this interface.
 	 * Note: you must call dhcp_fine_tmr() and dhcp_coarse_tmr() at
@@ -144,7 +214,6 @@ int main()
 	 */
 	dhcp_start(netif);
 	dhcp_timoutcntr = 24;
-	TxPerfConnMonCntr = 0;
 	while(((netif->ip_addr.addr) == 0) && (dhcp_timoutcntr > 0)) {
 		xemacif_input(netif);
 		if (TcpFastTmrFlag) {
@@ -156,6 +225,7 @@ int main()
 			TcpSlowTmrFlag = 0;
 		}
 	}
+
 	if (dhcp_timoutcntr <= 0) {
 		if ((netif->ip_addr.addr) == 0) {
 			xil_printf("DHCP Timeout\r\n");
@@ -165,19 +235,22 @@ int main()
 			IP4_ADDR(&(netif->gw),      192, 168,   1,  1);
 		}
 	}
-	/* receive and process packets */
-	print_ip_settings(&(netif->ip_addr), &(netif->netmask), &(netif->gw));
+
+	ipaddr.addr = netif->ip_addr.addr;
+	gw.addr = netif->gw.addr;
+	netmask.addr = netif->netmask.addr;
 #endif
 
+	print_ip_settings(&ipaddr, &netmask, &gw);
+
+#endif
 	/* start the application (web server, rxtest, txtest, etc..) */
 	start_applications();
 	print_headers();
 
 	// start DMM
 	initialize_DMM();
-
-
-
+	/* receive and process packets */
 	while (1) {
 		if (TcpFastTmrFlag) {
 			tcp_fasttmr();
@@ -190,9 +263,9 @@ int main()
 		xemacif_input(netif);
 		transfer_data();
 	}
-
-    /* never reached */
-    cleanup_platform();
+  
+	/* never reached */
+	cleanup_platform();
 
 	return 0;
 }
